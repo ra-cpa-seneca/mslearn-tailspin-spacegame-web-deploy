@@ -12,7 +12,7 @@ stages:
   - job: Build
     displayName: "Build job"
     pool:
-      name: "SecureAgents-aoude"        # Target your project pool
+      name: "SecureAgents-aoude"        # Target the project pool you created
       vmImage: "ubuntu-22.04"     # Microsoft-hosted image
       demands:
       - npm
@@ -22,16 +22,6 @@ stages:
       dotnetSdkVersion: "8.x"
 
     steps:
-    # (Optional) quick sanity print so you can see directories in logs
-    - script: |
-        pwd
-        echo "SOURCES=$(Build.SourcesDirectory)"
-        echo "ARTIFACTS=$(Build.ArtifactStagingDirectory)"
-        echo "WORKSPACE=$(Pipeline.Workspace)"
-        ls -la
-      displayName: "Print working dirs"
-      workingDirectory: "$(Build.SourcesDirectory)"
-
     - task: UseDotNet@2
       displayName: "Use .NET SDK $(dotnetSdkVersion)"
       inputs:
@@ -41,41 +31,35 @@ stages:
       displayName: "Run npm install"
       inputs:
         verbose: false
-        workingDir: "$(Build.SourcesDirectory)"   # <- pin cwd to repo root
 
-    - script: "./node_modules/.bin/node-sass $(Build.SourcesDirectory)/$(wwwrootDir) --output $(Build.SourcesDirectory)/$(wwwrootDir)"
+    - script: "./node_modules/.bin/node-sass $(wwwrootDir) --output $(wwwrootDir)"
       displayName: "Compile Sass assets"
-      workingDirectory: "$(Build.SourcesDirectory)"
 
     - task: gulp@1
       displayName: "Run gulp tasks"
-      inputs:
-        gulpFile: "$(Build.SourcesDirectory)/gulpfile.js"
-      # gulp@1 doesn’t expose workingDir input; set at step level:
-      workingDirectory: "$(Build.SourcesDirectory)"
 
     - script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
       displayName: "Write build info"
-      workingDirectory: "$(Build.SourcesDirectory)/$(wwwrootDir)"
+      workingDirectory: "$(wwwrootDir)"
 
     - task: DotNetCoreCLI@2
       displayName: "Restore project dependencies"
       inputs:
         command: "restore"
-        projects: "$(Build.SourcesDirectory)/**/*.csproj"
+        projects: "**/*.csproj"
 
     - task: DotNetCoreCLI@2
       displayName: "Build the project - $(buildConfiguration)"
       inputs:
         command: "build"
         arguments: "--no-restore --configuration $(buildConfiguration)"
-        projects: "$(Build.SourcesDirectory)/**/*.csproj"
+        projects: "**/*.csproj"
 
     - task: DotNetCoreCLI@2
       displayName: "Publish the project - $(buildConfiguration)"
       inputs:
         command: "publish"
-        projects: "$(Build.SourcesDirectory)/**/*.csproj"
+        projects: "**/*.csproj"
         publishWebProjects: false
         arguments: "--no-build --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/$(buildConfiguration)"
         zipAfterPublish: true
