@@ -15,9 +15,7 @@ stages:
   - job: Build
     displayName: Build job
     pool:
-      vmImage: 'ubuntu-22.04'
-      demands:
-      - npm
+      name: 'SecureAgents-aoude'    # your Managed DevOps Pool (Microsoft-hosted)
     steps:
     - checkout: self
 
@@ -26,21 +24,34 @@ stages:
       inputs:
         version: '$(dotnetSdkVersion)'
 
-    # Pin Node to a version that works with node-sass
     - task: NodeTool@0
       displayName: Use Node.js 16 LTS
       inputs:
         versionSpec: '16.x'
 
-    # Install front-end deps (use CI to respect package-lock)
     - task: Npm@1
-      displayName: Run npm ci
+      displayName: npm ci (web)
       inputs:
         command: 'ci'
         workingDir: '$(webDir)'
 
-    # Compile SASS (explicit path inside webDir)
-    - script: '$(webDir)/node_modules/.bin/node-sass $(wwwrootDir) --output $(wwwrootDir)'
+    - task: Npm@1
+      displayName: Ensure node-sass@6
+      inputs:
+        command: 'custom'
+        workingDir: '$(webDir)'
+        customCommand: 'install node-sass@6 --save-dev'
+
+    - script: |
+        cd $(webDir)
+        npx node -v
+        npx node-sass --version
+        ls -la node_modules/.bin | grep sass || true
+      displayName: Inspect node & node-sass
+
+    - script: |
+        cd $(webDir)
+        npx node-sass ./wwwroot --output ./wwwroot
       displayName: Compile Sass assets
 
     - task: Gulp@1
