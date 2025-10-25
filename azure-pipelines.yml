@@ -1,13 +1,3 @@
-trigger:
-- '*'
-
-variables:
-  buildConfiguration: 'Release'
-  releaseBranchName: 'release'
-  webDir: 'Tailspin.SpaceGame.Web'
-  wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
-  dotnetSdkVersion: '8.x'
-
 stages:
 - stage: Build
   displayName: Build the web application
@@ -15,74 +5,38 @@ stages:
   - job: Build
     displayName: Build job
     pool:
-      name: 'SecureAgents-aoude'    # your Managed DevOps Pool (Microsoft-hosted)
+      name: 'SecureAgents-aoude'
+
     steps:
     - checkout: self
 
     - task: UseDotNet@2
-      displayName: Use .NET SDK $(dotnetSdkVersion)
+      displayName: Use .NET SDK 8.x
       inputs:
-        version: '$(dotnetSdkVersion)'
-
-    - task: NodeTool@0
-      displayName: Use Node.js 16 LTS
-      inputs:
-        versionSpec: '16.x'
+        version: '8.x'
 
     - task: Npm@1
-      displayName: npm ci (web)
+      displayName: Run npm install
       inputs:
-        command: 'ci'
-        workingDir: '$(webDir)'
-
-    - task: Npm@1
-      displayName: Ensure node-sass@6
-      inputs:
-        command: 'custom'
-        workingDir: '$(webDir)'
-        customCommand: 'install node-sass@6 --save-dev'
+        command: 'install'
+        workingDir: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web'
 
     - script: |
-        cd $(webDir)
-        npx node -v
-        npx node-sass --version
-        ls -la node_modules/.bin | grep sass || true
-      displayName: Inspect node & node-sass
-
-    - script: |
-        cd $(webDir)
+        cd $(Build.SourcesDirectory)/Tailspin.SpaceGame.Web
         npx node-sass ./wwwroot --output ./wwwroot
       displayName: Compile Sass assets
 
-    - task: Gulp@1
-      displayName: Run gulp tasks
-      inputs:
-        gulpFile: '$(webDir)/gulpfile.js'
-
-    - script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
+    - script: |
+        echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt
+      workingDirectory: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web/wwwroot'
       displayName: Write build info
-      workingDirectory: '$(wwwrootDir)'
 
     - task: DotNetCoreCLI@2
-      displayName: Restore project dependencies
-      inputs:
-        command: restore
-        projects: '**/*.csproj'
-
-    - task: DotNetCoreCLI@2
-      displayName: Build the project - $(buildConfiguration)
-      inputs:
-        command: build
-        arguments: '--no-restore --configuration $(buildConfiguration)'
-        projects: '**/*.csproj'
-
-    - task: DotNetCoreCLI@2
-      displayName: Publish the project - $(buildConfiguration)
+      displayName: Publish
       inputs:
         command: publish
         projects: '**/*.csproj'
-        publishWebProjects: false
-        arguments: '--no-build --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/$(buildConfiguration)'
+        arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)/Release'
         zipAfterPublish: true
 
     - publish: '$(Build.ArtifactStagingDirectory)'
