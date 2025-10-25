@@ -4,60 +4,71 @@ trigger:
 variables:
   buildConfiguration: 'Release'
   releaseBranchName: 'release'
+  webDir: 'Tailspin.SpaceGame.Web'
+  wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
+  dotnetSdkVersion: '8.x'
 
 stages:
-- stage: 'Build'
-  displayName: 'Build the web application'
-  jobs: 
-  - job: 'Build'
-    displayName: 'Build job'
+- stage: Build
+  displayName: Build the web application
+  jobs:
+  - job: Build
+    displayName: Build job
     pool:
       vmImage: 'ubuntu-22.04'
       demands:
       - npm
-
-    variables:
-      wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
-      dotnetSdkVersion: '8.x'
-
     steps:
+    - checkout: self
+
     - task: UseDotNet@2
-      displayName: 'Use .NET SDK $(dotnetSdkVersion)'
+      displayName: Use .NET SDK $(dotnetSdkVersion)
       inputs:
         version: '$(dotnetSdkVersion)'
 
-    - task: Npm@1
-      displayName: 'Run npm install'
+    # Pin Node to a version that works with node-sass
+    - task: NodeTool@0
+      displayName: Use Node.js 16 LTS
       inputs:
-        verbose: false
+        versionSpec: '16.x'
 
-    - script: './node_modules/.bin/node-sass $(wwwrootDir) --output $(wwwrootDir)'
-      displayName: 'Compile Sass assets'
+    # Install front-end deps (use CI to respect package-lock)
+    - task: Npm@1
+      displayName: Run npm ci
+      inputs:
+        command: 'ci'
+        workingDir: '$(webDir)'
 
-    - task: gulp@1
-      displayName: 'Run gulp tasks'
+    # Compile SASS (explicit path inside webDir)
+    - script: '$(webDir)/node_modules/.bin/node-sass $(wwwrootDir) --output $(wwwrootDir)'
+      displayName: Compile Sass assets
+
+    - task: Gulp@1
+      displayName: Run gulp tasks
+      inputs:
+        gulpFile: '$(webDir)/gulpfile.js'
 
     - script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
-      displayName: 'Write build info'
-      workingDirectory: $(wwwrootDir)
+      displayName: Write build info
+      workingDirectory: '$(wwwrootDir)'
 
     - task: DotNetCoreCLI@2
-      displayName: 'Restore project dependencies'
+      displayName: Restore project dependencies
       inputs:
-        command: 'restore'
+        command: restore
         projects: '**/*.csproj'
 
     - task: DotNetCoreCLI@2
-      displayName: 'Build the project - $(buildConfiguration)'
+      displayName: Build the project - $(buildConfiguration)
       inputs:
-        command: 'build'
+        command: build
         arguments: '--no-restore --configuration $(buildConfiguration)'
         projects: '**/*.csproj'
 
     - task: DotNetCoreCLI@2
-      displayName: 'Publish the project - $(buildConfiguration)'
+      displayName: Publish the project - $(buildConfiguration)
       inputs:
-        command: 'publish'
+        command: publish
         projects: '**/*.csproj'
         publishWebProjects: false
         arguments: '--no-build --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/$(buildConfiguration)'
