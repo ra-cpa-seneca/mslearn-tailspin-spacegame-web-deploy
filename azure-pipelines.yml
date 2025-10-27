@@ -80,6 +80,14 @@ stages:
         script: 'npx node-sass $(wwwrootDir) --output $(wwwrootDir)'
         workingDirectory: '$(webProjectDir)'
 
+ # ---------------------------------------------------------------------
+    # 🧩 6️⃣  Install gulp and plugins globally (so gulp@1 finds them)
+    # ---------------------------------------------------------------------
+    - task: Npm@1
+      displayName: 'Install gulp-cli globally'
+      inputs:
+        command: 'custom'
+        customCommand: 'install -g gulp-cli gulp gulp-concat gulp-clean-css gulp-uglify rimraf'
 
     # ---------------------------------------------------------------------
     # 6️⃣  Run gulp tasks
