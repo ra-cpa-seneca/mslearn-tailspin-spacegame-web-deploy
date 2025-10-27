@@ -120,3 +120,30 @@ stages:
 
     - publish: '$(Build.ArtifactStagingDirectory)'
       artifact: drop
+
+- stage: 'AKS'
+  displayName: 'Deploy to AKS'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - deployment: DeployToAKS
+    displayName: 'Deploy manifests to AKS'
+    pool:
+      name: 'SelfHosted-SecureAgents'
+    environment: 'aks'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+
+          - task: KubernetesManifest@1
+            displayName: 'Deploy Kubernetes manifests'
+            inputs:
+              action: 'deploy'
+              kubernetesServiceConnection: 'sc-k8s-aks-secureapp'
+              namespace: 'default'
+              manifests: |
+                manifests/deployment.yaml
+                manifests/service.yaml
