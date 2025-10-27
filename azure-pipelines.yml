@@ -4,11 +4,15 @@ trigger:
 variables:
   buildConfiguration: 'Release'
   releaseBranchName: 'release'
+  
+  webProjectDir: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web'
+  wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
+  dotnetSdkVersion: '8.x'
 
 stages:
 - stage: 'Build'
   displayName: 'Build the web application'
-  jobs: 
+  jobs:
   - job: 'Build'
     displayName: 'Build job'
     pool:
@@ -16,31 +20,55 @@ stages:
       demands:
       - npm
 
-    variables:
-      wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
-      dotnetSdkVersion: '8.x'
-
     steps:
+    
+    - task: NodeTool@0
+      displayName: 'Use Node 18.x LTS'
+      inputs:
+        versionSpec: '18.x'
+
+    
     - task: UseDotNet@2
       displayName: 'Use .NET SDK $(dotnetSdkVersion)'
       inputs:
         version: '$(dotnetSdkVersion)'
 
+    
     - task: Npm@1
-      displayName: 'Run npm install'
+      displayName: 'Run npm install (web)'
       inputs:
-        verbose: false
+        command: 'install'
+        workingDir: '$(webProjectDir)'
+      
+      env:
+        GYP_MSVS_VERSION: '2022'
+        npm_config_msvs_version: '2022'
+        
+        PYTHON: 'C:\Program Files\Python312\python.exe'
 
-    - script: './node_modules/.bin/node-sass $(wwwrootDir) --output $(wwwrootDir)'
+    
+    - task: CmdLine@2
       displayName: 'Compile Sass assets'
+      inputs:
+        script: 'npx node-sass $(wwwrootDir) --output $(wwwrootDir)'
+        workingDirectory: '$(webProjectDir)'
 
+    
     - task: gulp@1
       displayName: 'Run gulp tasks'
+      inputs:
+        gulpFile: ''
+        targets: ''
+        workingDirectory: '$(webProjectDir)'
 
-    - script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
+    
+    - task: CmdLine@2
       displayName: 'Write build info'
-      workingDirectory: $(wwwrootDir)
+      inputs:
+        script: 'echo $(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber) > buildinfo.txt'
+        workingDirectory: '$(webProjectDir)/wwwroot'
 
+    
     - task: DotNetCoreCLI@2
       displayName: 'Restore project dependencies'
       inputs:
