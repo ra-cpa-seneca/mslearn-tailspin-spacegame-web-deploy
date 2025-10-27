@@ -6,7 +6,7 @@ variables:
   buildConfiguration: 'Release'
   releaseBranchName: 'release'
   webProjectDir: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web'
-  wwwrootDir: 'wwwroot'   # <-- changed
+  wwwrootDir: 'wwwroot'   
   dotnetSdkVersion: '8.x'
 
 
@@ -25,27 +25,21 @@ stages:
 
 
     steps:
-    # ---------------------------------------------------------------------
-    # 1️⃣  Use Node 16 (compatible with node-sass prebuilt binaries)
-    # ---------------------------------------------------------------------
+
     - task: NodeTool@0
       displayName: 'Use Node 16.x'
       inputs:
         versionSpec: '16.x'
 
 
-    # ---------------------------------------------------------------------
-    # 2️⃣  Install .NET SDK
-    # ---------------------------------------------------------------------
+
     - task: UseDotNet@2
       displayName: 'Use .NET SDK $(dotnetSdkVersion)'
       inputs:
         version: '$(dotnetSdkVersion)'
 
 
-    # ---------------------------------------------------------------------
-    # 3️⃣  npm install with node-gyp build environment hints
-    # ---------------------------------------------------------------------
+
     - task: Npm@1
       displayName: 'npm install (web)'
       inputs:
@@ -57,9 +51,7 @@ stages:
         npm_config_msvs_version: '2022'
 
 
-    # ---------------------------------------------------------------------
-    # 4️⃣  Force rebuild of node-sass against Node 16 (if needed)
-    # ---------------------------------------------------------------------
+
     - task: CmdLine@2
       displayName: 'npm rebuild node-sass'
       inputs:
@@ -71,36 +63,28 @@ stages:
         npm_config_msvs_version: '2022'
 
 
-    # ---------------------------------------------------------------------
-    # 5️⃣  Compile Sass → CSS using node-sass CLI
-    # ---------------------------------------------------------------------
+
     - task: CmdLine@2
       displayName: 'Compile Sass assets'
       inputs:
         script: 'npx node-sass $(wwwrootDir) --output $(wwwrootDir)'
         workingDirectory: '$(webProjectDir)'
 
- # ---------------------------------------------------------------------
-    # 🧩 6️⃣  Install gulp and plugins globally (so gulp@1 finds them)
-    # ---------------------------------------------------------------------
+
     - task: Npm@1
       displayName: 'Install gulp-cli globally'
       inputs:
         command: 'custom'
         customCommand: 'install -g gulp-cli gulp gulp-concat gulp-clean-css gulp-uglify rimraf'
 
-    # ---------------------------------------------------------------------
-    # 6️⃣  Run gulp tasks
-    # ---------------------------------------------------------------------
+ 
     - task: gulp@1
       displayName: 'Run gulp tasks'
       inputs:
         workingDirectory: '$(webProjectDir)'
 
 
-    # ---------------------------------------------------------------------
-    # 7️⃣  Write build metadata
-    # ---------------------------------------------------------------------
+
     - task: CmdLine@2
       displayName: 'Write build info'
       inputs:
@@ -108,9 +92,7 @@ stages:
         workingDirectory: '$(webProjectDir)/wwwroot'
 
 
-    # ---------------------------------------------------------------------
-    # 8️⃣  .NET restore / build / publish
-    # ---------------------------------------------------------------------
+
     - task: DotNetCoreCLI@2
       displayName: 'Restore project dependencies'
       inputs:
