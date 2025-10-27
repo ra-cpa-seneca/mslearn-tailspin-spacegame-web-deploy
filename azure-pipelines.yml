@@ -4,10 +4,10 @@ trigger:
 variables:
   buildConfiguration: 'Release'
   releaseBranchName: 'release'
-  # Web project paths used by multiple steps
   webProjectDir: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web'
-  wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
+  wwwrootDir: 'wwwroot'   # <-- changed
   dotnetSdkVersion: '8.x'
+
 
 stages:
 - stage: 'Build'
