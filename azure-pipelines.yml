@@ -4,6 +4,7 @@ trigger:
 variables:
   buildConfiguration: 'Release'
   releaseBranchName: 'release'
+  # Web project paths used by multiple steps
   webProjectDir: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web'
   wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
   dotnetSdkVersion: '8.x'
@@ -15,54 +16,82 @@ stages:
   - job: 'Build'
     displayName: 'Build job'
     pool:
-      name: 'SelfHosted-SecureAgents'
+      name: 'SelfHosted-SecureAgents'   # run on self-hosted VM agent
       demands:
       - npm
 
     steps:
+    # ---------------------------------------------------------------------
+    # 1️⃣  Use Node 16 (compatible with node-sass prebuilt binaries)
+    # ---------------------------------------------------------------------
     - task: NodeTool@0
-      displayName: 'Use Node 18.x LTS'
+      displayName: 'Use Node 16.x'
       inputs:
-        versionSpec: '18.x'
+        versionSpec: '16.x'
 
+    # ---------------------------------------------------------------------
+    # 2️⃣  Install .NET SDK
+    # ---------------------------------------------------------------------
     - task: UseDotNet@2
       displayName: 'Use .NET SDK $(dotnetSdkVersion)'
       inputs:
         version: '$(dotnetSdkVersion)'
 
-    # Install front-end deps
+    # ---------------------------------------------------------------------
+    # 3️⃣  npm install with node-gyp build environment hints
+    # ---------------------------------------------------------------------
     - task: Npm@1
       displayName: 'npm install (web)'
       inputs:
         command: 'install'
         workingDir: '$(webProjectDir)'
+      env:
+        PYTHON: 'C:\Program Files\Python312\python.exe'
+        GYP_MSVS_VERSION: '2022'
+        npm_config_msvs_version: '2022'
 
-    # Add sass (Dart Sass) to avoid node-gyp/native builds
-    - task: Npm@1
-      displayName: 'npm install sass (dev)'
-      inputs:
-        command: 'custom'
-        workingDir: '$(webProjectDir)'
-        customCommand: 'install --save-dev sass'
-
-    # Compile Sass with dart-sass
+    # ---------------------------------------------------------------------
+    # 4️⃣  Force rebuild of node-sass against Node 16 (if needed)
+    # ---------------------------------------------------------------------
     - task: CmdLine@2
-      displayName: 'Compile Sass assets (dart-sass)'
+      displayName: 'npm rebuild node-sass'
       inputs:
-        script: 'npx sass $(wwwrootDir):$(wwwrootDir) --no-source-map'
+        script: 'npm rebuild node-sass'
+        workingDirectory: '$(webProjectDir)'
+      env:
+        PYTHON: 'C:\Program Files\Python312\python.exe'
+        GYP_MSVS_VERSION: '2022'
+        npm_config_msvs_version: '2022'
+
+    # ---------------------------------------------------------------------
+    # 5️⃣  Compile Sass → CSS using node-sass CLI
+    # ---------------------------------------------------------------------
+    - task: CmdLine@2
+      displayName: 'Compile Sass assets'
+      inputs:
+        script: 'npx node-sass $(wwwrootDir) --output $(wwwrootDir)'
         workingDirectory: '$(webProjectDir)'
 
+    # ---------------------------------------------------------------------
+    # 6️⃣  Run gulp tasks
+    # ---------------------------------------------------------------------
     - task: gulp@1
       displayName: 'Run gulp tasks'
       inputs:
         workingDirectory: '$(webProjectDir)'
 
+    # ---------------------------------------------------------------------
+    # 7️⃣  Write build metadata
+    # ---------------------------------------------------------------------
     - task: CmdLine@2
       displayName: 'Write build info'
       inputs:
         script: 'echo $(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber) > buildinfo.txt'
         workingDirectory: '$(webProjectDir)/wwwroot'
 
+    # ---------------------------------------------------------------------
+    # 8️⃣  .NET restore / build / publish
+    # ---------------------------------------------------------------------
     - task: DotNetCoreCLI@2
       displayName: 'Restore project dependencies'
       inputs:
