@@ -4,7 +4,6 @@ trigger:
 variables:
   buildConfiguration: 'Release'
   releaseBranchName: 'release'
-  
   webProjectDir: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web'
   wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
   dotnetSdkVersion: '8.x'
@@ -16,59 +15,54 @@ stages:
   - job: 'Build'
     displayName: 'Build job'
     pool:
-      name: 'SelfHosted-SecureAgents'   # run on self-hosted VM agent
+      name: 'SelfHosted-SecureAgents'
       demands:
       - npm
 
     steps:
-    
     - task: NodeTool@0
       displayName: 'Use Node 18.x LTS'
       inputs:
         versionSpec: '18.x'
 
-    
     - task: UseDotNet@2
       displayName: 'Use .NET SDK $(dotnetSdkVersion)'
       inputs:
         version: '$(dotnetSdkVersion)'
 
-    
+    # Install front-end deps
     - task: Npm@1
-      displayName: 'Run npm install (web)'
+      displayName: 'npm install (web)'
       inputs:
         command: 'install'
         workingDir: '$(webProjectDir)'
-      
-      env:
-        GYP_MSVS_VERSION: '2022'
-        npm_config_msvs_version: '2022'
-        
-        PYTHON: 'C:\Program Files\Python312\python.exe'
 
-    
-    - task: CmdLine@2
-      displayName: 'Compile Sass assets'
+    # Add sass (Dart Sass) to avoid node-gyp/native builds
+    - task: Npm@1
+      displayName: 'npm install sass (dev)'
       inputs:
-        script: 'npx node-sass $(wwwrootDir) --output $(wwwrootDir)'
+        command: 'custom'
+        workingDir: '$(webProjectDir)'
+        customCommand: 'install --save-dev sass'
+
+    # Compile Sass with dart-sass
+    - task: CmdLine@2
+      displayName: 'Compile Sass assets (dart-sass)'
+      inputs:
+        script: 'npx sass $(wwwrootDir):$(wwwrootDir) --no-source-map'
         workingDirectory: '$(webProjectDir)'
 
-    
     - task: gulp@1
       displayName: 'Run gulp tasks'
       inputs:
-        gulpFile: ''
-        targets: ''
         workingDirectory: '$(webProjectDir)'
 
-    
     - task: CmdLine@2
       displayName: 'Write build info'
       inputs:
         script: 'echo $(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber) > buildinfo.txt'
         workingDirectory: '$(webProjectDir)/wwwroot'
 
-    
     - task: DotNetCoreCLI@2
       displayName: 'Restore project dependencies'
       inputs:
