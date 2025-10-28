@@ -12,9 +12,9 @@ stages:
   - job: 'Build'
     displayName: 'Build job'
     pool:
-      name: 'SecureAgents-aoude'        # custom pool
-      demands:
-      - npm
+      name: 'SecureAgents-aoude'   # 👈 Your Managed DevOps Pool name
+      # Remove 'demands' unless using self-hosted agents
+      # Managed DevOps Pools automatically satisfy standard tool requirements
 
     variables:
       wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
@@ -34,10 +34,11 @@ stages:
     - script: './node_modules/.bin/node-sass $(wwwrootDir) --output $(wwwrootDir)'
       displayName: 'Compile Sass assets'
 
-    - task: gulp@1
+    - task: Gulp@1
       displayName: 'Run gulp tasks'
 
-    - script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
+    - script: |
+        echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt
       displayName: 'Write build info'
       workingDirectory: $(wwwrootDir)
 
