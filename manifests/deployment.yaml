@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tailspin-web
+  labels:
+    app: tailspin-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tailspin-web
+  template:
+    metadata:
+      labels:
+        app: tailspin-web
+    spec:
+      containers:
+        - name: tailspin-web
+          image: ubuntu:22.04
+          command: ["sleep", "infinity"]
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          ports:
+            - containerPort: 80
