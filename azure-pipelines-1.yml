@@ -13,7 +13,6 @@ stages:
     displayName: 'Build job'
     pool:
       name: 'SecureAgents-aoude'        # custom pool
-      vmImage: 'ubuntu-22.04'     # Microsoft-hosted agent OS
       demands:
       - npm
 
