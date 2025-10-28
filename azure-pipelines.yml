@@ -145,5 +145,5 @@ stages:
               kubernetesServiceConnection: 'sc-k8s-aks-secureapp'
               namespace: 'default'
               manifests: |
-                manifests/deployment.yaml
-                manifests/service.yaml
+                $(System.DefaultWorkingDirectory)/manifests/deployment.yaml
+                $(System.DefaultWorkingDirectory)/manifests/service.yaml
