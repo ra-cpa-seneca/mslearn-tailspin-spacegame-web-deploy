@@ -15,12 +15,17 @@ spec:
         app: tailspin-web
     spec:
       containers:
-        - name: tailspin-web
-          image: ubuntu:22.04
-          command: ["sleep", "infinity"]
-          resources:
-            limits:
-              memory: "256Mi"
-              cpu: "250m"
-          ports:
-            - containerPort: 80
+      - name: tailspin-web
+        image: nginx:latest 
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
