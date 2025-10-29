@@ -83,11 +83,11 @@ stages:
         version: '$(dotnetSdkVersion)'
 
 
-    - task: DotNetCoreCLI@1
+    - task: DotNetCoreCLI@2
       displayName: 'Test (generate trx)'
       inputs:
         command: 'test'
-        projects: '**/*Tests/*csproj'
+        projects: '**/*Tests/*.csproj'
         arguments: '--configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=test-results.trx"'
         publishTestResults: false
 
@@ -96,7 +96,7 @@ stages:
       displayName: 'Publish test results'
       inputs:
         testResultsFormat: 'VSTest'
-        testResultsFiles: '**/test-results.trx'
+        testResultsFiles: 
         testRunTitle: 'Unit Tests'
         failTaskOnFailedTests: true
 
