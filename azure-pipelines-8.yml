@@ -83,7 +83,7 @@ stages:
         version: '$(dotnetSdkVersion)'
 
 
-    - task: DotNetCoreCLI@2
+    - task: DotNetCoreCLI@1
       displayName: 'Test (generate trx)'
       inputs:
         command: 'test'
