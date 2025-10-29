@@ -1,0 +1,120 @@
+trigger:
+- '*'
+
+# Global variables
+variables:
+  buildConfiguration: 'Release'
+  releaseBranchName: 'release'
+  dotnetSdkVersion: '8.x'
+  # Keep node-sass out of the build to avoid node-gyp on hosted agents
+
+stages:
+# ───────────────────────────
+# 1) BUILD (LOCAL AGENT)
+# ───────────────────────────
+- stage: Build
+  displayName: 'Build on local agent'
+  jobs:
+  - job: Build
+    displayName: 'Build job'
+    pool:
+      name: 'SelfHosted-SecureAgents'   # ← your local/self-hosted pool
+      demands:
+      - DotNetFramework
+    steps:
+    - task: UseDotNet@2
+      displayName: 'Use .NET SDK $(dotnetSdkVersion)'
+      inputs:
+        version: '$(dotnetSdkVersion)'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore'
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Build ($(buildConfiguration))'
+      inputs:
+        command: 'build'
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish ($(buildConfiguration))'
+      inputs:
+        command: 'publish'
+        projects: '**/*.csproj'
+        publishWebProjects: false
+        arguments: '--configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)/$(buildConfiguration)'
+        zipAfterPublish: true
+
+    - publish: '$(Build.ArtifactStagingDirectory)'
+      displayName: 'Publish artifact: drop'
+      artifact: drop
+
+# ───────────────────────────
+# 2) TEST (LOCAL AGENT)
+# ───────────────────────────
+- stage: Test
+  displayName: 'Test on local agent'
+  dependsOn: Build
+  condition: succeeded()            # ← only run if Build succeeded
+  jobs:
+  - job: UnitTests
+    displayName: 'Run unit tests'
+    pool:
+      name: 'SelfHosted-SecureAgents' # ← same local/self-hosted pool
+    steps:
+    - task: UseDotNet@2
+      displayName: 'Use .NET SDK $(dotnetSdkVersion)'
+      inputs:
+        version: '$(dotnetSdkVersion)'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Test (generate trx)'
+      inputs:
+        command: 'test'
+        projects: '**/*Tests/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=test-results.trx"'
+        publishTestResults: false
+
+    - task: PublishTestResults@2
+      displayName: 'Publish test results'
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '**/test-results.trx'
+        testRunTitle: 'Unit Tests'
+        failTaskOnFailedTests: true
+
+# ───────────────────────────
+# 3) DEPLOY (MICROSOFT-HOSTED)
+# ───────────────────────────
+- stage: Deploy
+  displayName: 'Deploy from hosted agent'
+  dependsOn: Test
+  # Example: only deploy if Build & Test succeeded AND branch is main
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  variables:
+  - group: Release                   # ← contains WebAppNameDev, etc.
+  jobs:
+  - deployment: DeployToDev
+    displayName: 'Deploy to Dev App Service'
+    environment: 'dev'
+    pool:
+      vmImage: 'ubuntu-22.04'        # ← Microsoft-hosted agent
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            displayName: 'Download artifact: drop'
+            artifact: drop
+
+          - task: AzureWebApp@1
+            displayName: 'Azure App Service Deploy (Dev)'
+            inputs:
+              azureSubscription: 'azure-connection-secureapp'   # ← your ARM svc connection
+              appType: 'webAppLinux'
+              appName: '$(WebAppNameDev)'                       # ← from variable group
+              package: '$(Pipeline.Workspace)/drop/$(buildConfiguration)/*.zip'
